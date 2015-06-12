@@ -4,7 +4,9 @@ import pygame
 
 import rospy
 from std_msgs.msg import String
-from turtlesim.msg import Pose
+from geometry_msgs.msg import PoseStamped
+from geometry_msgs.msg import Point
+
 
 DETECT_TIME = 0.25	# time after which it is signaled that the pose has not changed
 
@@ -15,10 +17,13 @@ class MyNode():
 	def __init__(self):
 		rospy.init_node('listener', anonymous=True)
 		
-		rospy.Subscriber("/turtle1/pose", Pose, self.pose_callback)
+		rospy.Subscriber("/Robot_1/pose", PoseStamped, self.pose_callback)
 		
-		pygame.init()
-		pygame.mixer.music.load("audio/beep.wav")
+		pygame_init = pygame.init()
+		
+		rospy.loginfo(pygame_init)
+		
+		pygame.mixer.music.load("/home/enrico/workspace-ros/src/mocap_optitrack_visibility_tester/audio/beep.wav")
 
 		self.last_pose = None
 		self.last_pose_t = None
@@ -27,21 +32,20 @@ class MyNode():
 		self.is_tracking_lost = False
  
 	def pose_callback(self, pose):
-		rospy.logdebug("received pose: x %s, y %s, z %s", pose.x, pose.y, 0)
-	
+		rospy.logdebug("received pose: x %s, y %s, z %s", pose.pose.position.x, pose.pose.position.y, pose.pose.position.z)
 		# if the pose is different from the last one received then the tracking isn't lost
-		if not ( self.last_pose and pose.x == self.last_pose.x and pose.y == self.last_pose.y ):
+		if not ( self.last_pose and pose.pose.position.x == self.last_pose.pose.position.x and pose.pose.position.y == self.last_pose.pose.position.y and pose.pose.position.z == self.last_pose.pose.position.z ):
 			self.last_pose_change = time.time()		# update the last_pose_change's timestamp
 			
 			if self.is_tracking_lost:				# if it was lost before, log the new pose
-				rospy.loginfo("Tracking jump to: x %s, y %s, z %s", pose.x, pose.y, 0)
+				rospy.loginfo("Tracking jump to: x %s, y %s, z %s", pose.pose.position.x, pose.pose.position.y, pose.pose.position.z)
 			
 			self.is_tracking_lost = False
 		
 		# if the pose hasn't changed for DETECT_TIME
 		if self.last_pose_change and not self.is_tracking_lost and (time.time() - self.last_pose_change) > DETECT_TIME:
 			self.is_tracking_lost = True			# the tracking is (probably) lost, log it
-			rospy.loginfo("Tracking lost in: x %s, y %s, z %s", pose.x, pose.y, 0)
+			rospy.loginfo("Tracking lost in: x %s, y %s, z %s", pose.pose.position.x, pose.pose.position.y, pose.pose.position.z)
 			beep()
 		
 		self.last_pose = pose
