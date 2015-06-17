@@ -21,9 +21,11 @@ class MyNode():
 		
 		pygame_init = pygame.init()
 		
-		rospy.loginfo(pygame_init)
+		pygame.mixer.music.load("audio/beep.wav")
 		
-		pygame.mixer.music.load("/home/enrico/workspace-ros/src/mocap_optitrack_visibility_tester/audio/beep.wav")
+		beep()
+		
+		rospy.loginfo("sound initialized: trial beep should be heard")
 
 		self.last_pose = None
 		self.last_pose_t = None
@@ -31,24 +33,28 @@ class MyNode():
 		
 		self.is_tracking_lost = False
  
-	def pose_callback(self, pose):
-		rospy.logdebug("received pose: x %s, y %s, z %s", pose.pose.position.x, pose.pose.position.y, pose.pose.position.z)
+	def pose_callback(self, pose_stamped):
+		pos = pose_stamped.pose.position
+		if(self.last_pose):	last_pos = self.last_pose.pose.position
+		else:	last_pos = None
+		
+		rospy.logdebug("received pose: x %s, y %s, z %s", pos.x, pos.y, pos.z)
 		# if the pose is different from the last one received then the tracking isn't lost
-		if not ( self.last_pose and pose.pose.position.x == self.last_pose.pose.position.x and pose.pose.position.y == self.last_pose.pose.position.y and pose.pose.position.z == self.last_pose.pose.position.z ):
+		if not ( self.last_pose and pos.x == last_pos.x and pos.y == last_pos.y and pos.z == last_pos.z ):
 			self.last_pose_change = time.time()		# update the last_pose_change's timestamp
 			
 			if self.is_tracking_lost:				# if it was lost before, log the new pose
-				rospy.loginfo("Tracking jump to: x %s, y %s, z %s", pose.pose.position.x, pose.pose.position.y, pose.pose.position.z)
+				rospy.loginfo("Tracking jump to: x %s, y %s, z %s", pos.x, pos.y, pos.z)
 			
 			self.is_tracking_lost = False
 		
 		# if the pose hasn't changed for DETECT_TIME
 		if self.last_pose_change and not self.is_tracking_lost and (time.time() - self.last_pose_change) > DETECT_TIME:
 			self.is_tracking_lost = True			# the tracking is (probably) lost, log it
-			rospy.loginfo("Tracking lost in: x %s, y %s, z %s", pose.pose.position.x, pose.pose.position.y, pose.pose.position.z)
+			rospy.loginfo("Tracking lost in: x %s, y %s, z %s", pos.x, pos.y, pos.z)
 			beep()
 		
-		self.last_pose = pose
+		self.last_pose = pose_stamped
 		self.last_pose_t = time.time()
 
 if __name__ == '__main__':
